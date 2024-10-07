@@ -26,11 +26,11 @@ app.use(cookieParser());
 app.use(helmet());
 
 // Rate limiting to prevent brute force attacks
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
+// const limiter = rateLimit({
+//     windowMs: 15 * 60 * 1000, // 15 minutes
+//     max: 100, // limit each IP to 100 requests per windowMs
+// });
+// app.use(limiter);
 
 // Use API routes
 app.use('/api', apiRoutes);
