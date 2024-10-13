@@ -191,47 +191,60 @@ def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
         config = LANGUAGE_CONFIG['c++']
         image = config['image']
         timeout = config['timeout']
-        filename = f"{problem_id}"
-        work_dir = os.path.join(os.getcwd(), "..", "problems", f"submission_{submission_id}")
+        
+        # Convert submission_id and problem_id to strings
+        filename = f"{str(problem_id)}"
+        work_dir = os.path.join(os.getcwd(), "..", "problems", f"submission_{str(submission_id)}")
         input_dir = os.path.join(work_dir, "inputs")
+        
+        # Create directories if not existing
         os.makedirs(work_dir, exist_ok=True)
         os.makedirs(input_dir, exist_ok=True)
 
-        # Write custom testcase to file
+        # Write custom test case to file
         with open(os.path.join(input_dir, 'custom_input.txt'), 'w') as f:
             f.write(customTestcase)
 
-        # Copy executable to work directory
-        exec_source = os.path.join(os.getcwd(), "..", "problems", problem_id, f"{filename}_exec")
-        exec_dest = os.path.join(work_dir, f"{filename}_exec")
-        shutil.copy(exec_source, exec_dest)
+        # Copy the solution source code to the work directory
+        sol_source = os.path.join(os.getcwd(), "..", "problems", str(problem_id), "solution.cpp")
+        exec_dest = os.path.join(work_dir, f"{filename}.cpp")
+        shutil.copy(sol_source, exec_dest)
 
-        # Ensure the copied executable has the right permissions
+        # Ensure the copied solution has the right permissions (for Docker run)
         os.chmod(exec_dest, 0o755)
 
         input_file = 'custom_input.txt'
-        run_cmd = f"./{filename}_exec"
-
-        print(f'Custom Testcase : {customTestcase}')
+        exec_name = f"{filename}_exec"
+        cpp_file = f"{filename}.cpp"
         
-        # Run the Docker command
+        # Docker compilation and execution commands
+        compile_cmd = f"g++ -o {exec_name} {cpp_file}"
+        run_cmd = f"./{exec_name} < inputs/{input_file}"
+
+        # Print custom test case for debugging
+        print(f'Custom Testcase : {customTestcase}')
+
+        # Run the Docker container to compile and execute the solution
         docker_cmd = [
             "docker", "run", "--rm", "--memory=256m", "--cpus=1",
             "-v", f"{work_dir}:/app", "-w", "/app", image,
-            "sh", "-c", f"timeout {timeout}s {run_cmd} < inputs/{input_file}"
+            "sh", "-c", f"{compile_cmd} && timeout {timeout}s {run_cmd}"
         ]
-        
+
+        # Execute the Docker command
         run_result = subprocess.run(
             docker_cmd,
             capture_output=True,
             text=True
         )
 
+        # Check for time limit exceeded
         if run_result.returncode == 124:
             return {
                 "status": "time_limit_exceeded",
                 "message": f"Execution time exceeded {timeout} seconds on testcase."
             }
+        # Check for other runtime errors
         elif run_result.returncode != 0:
             error_message = run_result.stderr
             return {
@@ -240,15 +253,22 @@ def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
                 "results": error_message
             }
 
+        # Return 'accepted' as status for a successful run
         results = run_result.stdout
-        return results
+        return {
+            "status": "accepted",  # Mapping 'success' to 'accepted' for valid enum
+            "message": "Custom test case executed successfully.",
+            "results": results
+        }
     except Exception as e:
-        print("Error in running in docker", e)
+        print(f"Error in running Docker: {e}")
         return {"status": "pending", "message": "Unexpected error occurred", "results": str(e)}
     finally:
+        # Optional cleanup (uncomment if necessary)
         if os.path.exists(work_dir):
             shutil.rmtree(work_dir)
-        
+        # pass
+       
 
 @app.task
 def execute_program(submission, mode='run'):
