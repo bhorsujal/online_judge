@@ -7,7 +7,7 @@ const { validationResult } = require('express-validator');
 const lpushAsync = promisify(redisClient.lpush).bind(redisClient);
 
 const runSubmitProblem = async (req, res) => {
-    const { problem_id, code, language, action } = req.body;
+    const { problem_id, code, customTestcase, language, action, event } = req.body;
     
     const user = req.user;
 
@@ -18,24 +18,27 @@ const runSubmitProblem = async (req, res) => {
             problem_id: problem_id,
             user_id: user.user_id,
             code,
+            customTestcase,
             language,
             status: 'pending',
             action,
+            event,
             createdAt: new Date(),
             updatedAt: new Date(),
         });
         await submission.save();
 
         console.log(`Submission stored with submissionId: ${submission.submission_id}, action: ${action}`);
-
+        
         // Prepare submission data for Redis queue
         const submissionData = {
             submission_id: submission.submission_id,
             problem_id,
             user_id : user.user_id,
             code,
+            customTestcase,
             language,
-            // action,  // 'RUN' or 'SUBMIT'
+            event,
             timestamp: new Date().toISOString(),
         };
 

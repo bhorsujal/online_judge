@@ -31,6 +31,11 @@ const Submission = sequelize.define('Submission', {
         type: DataTypes.TEXT,
         allowNull: false
     },
+    customTestcase: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        defaultValue: ""
+    },
     language: {
         type: DataTypes.STRING,
         allowNull: false,
@@ -48,6 +53,10 @@ const Submission = sequelize.define('Submission', {
         allowNull: false,
         defaultValue: 'pending'
     },
+    event: {
+        type: DataTypes.ENUM('NCC', 'RC'),
+        allowNull: false,
+    }
 }, {
     tableName: 'submissions',
     timestamps: true,

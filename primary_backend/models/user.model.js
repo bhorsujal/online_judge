@@ -16,6 +16,14 @@ const User = sequelize.define('User', {
         type: DataTypes.STRING,
         allowNull: false,
     },
+    event: {
+        type: DataTypes.ENUM('NCC', 'RC'),
+        allowNull: false,
+    },
+    category: {
+        type: DataTypes.ENUM('junior', 'senior'),
+        allowNull: false,
+    }
 }, {
     tableName: 'users',
     timestamps: true, // Adds createdAt and updatedAt fields

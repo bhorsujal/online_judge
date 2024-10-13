@@ -6,13 +6,13 @@ require('dotenv').config();
 
 const register = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, event, category } = req.body;
 
-        if(!email || !password){
+        if(!email || !password || !event || !category){
             return res.status(400).json({ message : 'Email and Password are required' });
         }
 
-        const existingUser = await User.findOne( { where : { email } });
+        const existingUser = await User.findOne( { where : { email : email, event : event } });
 
         if (existingUser) {
             return res.status(400).json({ message: 'User already exists!' });
@@ -21,7 +21,9 @@ const register = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = new User({
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            event,
+            category
         });
         await newUser.save();
 
@@ -35,13 +37,13 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, event } = req.body;
 
-        if (!email || !password) {
+        if (!email || !password || !event) {
             return res.status(400).json({ message: 'Email and password are required.' });
         }
        
-        const checkUser = await User.findOne({ where: { email } });
+        const checkUser = await User.findOne({ where: { email : email, event : event } });
         if (!checkUser) {
             return res.status(400).json({ message: 'Email is not registered.' });
         }

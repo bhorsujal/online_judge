@@ -22,6 +22,10 @@
     expected_output_file_path: {
       type: DataTypes.STRING,
       allowNull: true,
+    },
+    event: {
+      type: DataTypes.ENUM('NCC', 'RC'),
+      allowNull: false,
     }
   }, {
     tableName: 'problems'

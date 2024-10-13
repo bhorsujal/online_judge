@@ -2,6 +2,7 @@ import os
 import json
 import subprocess
 import httpx
+import shutil
 from celery import Celery, shared_task
 from celery.schedules import timedelta
 from redis import Redis
@@ -30,8 +31,44 @@ app.conf.broker_connection_retry_on_startup = True
 # Redis client
 redis_client = Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB)
 
+LANGUAGE_CONFIG = {
+    'python': {
+        'extension': '.py',
+        'image': 'python:3.9-alpine',
+        'run_cmd': 'python {filename}',
+        'timeout': 4,
+    },
+    'cpp': {
+        'extension': '.cpp',
+        'image': 'gcc:alpine',
+        'compile_cmd': 'g++ -o {exec_name} {filename}',
+        'run_cmd': './{exec_name}',
+        'timeout': 2,
+    },
+    'c++': {  # Alias for cpp
+        'extension': '.cpp',
+        'image': 'gcc:alpine',
+        'compile_cmd': 'g++ -o {exec_name} {filename}',
+        'run_cmd': './{exec_name}',
+        'timeout': 2,
+    },
+    'java': {
+        'extension': '.java',
+        'image': 'openjdk:11-jdk-alpine',
+        'compile_cmd': 'javac {filename}',
+        'run_cmd': 'java {classname}',
+        'timeout': 2,
+    },
+    'javascript': {
+        'extension': '.js',
+        'image': 'node:14-alpine',
+        'run_cmd': 'node {filename}',
+        'timeout': 4,
+    },
+}
 
-def run_code_in_docker(code, language, submission_id, problem_id, test_case_paths, expected_output_paths):
+
+def run_code_in_docker(code, language, submission_id, test_case_paths, expected_output_paths, customTestcase, event):
     try:
         results = {
             "status": "accepted",
@@ -39,31 +76,15 @@ def run_code_in_docker(code, language, submission_id, problem_id, test_case_path
             "results": ""
         }
 
-        filename = f"submission_{submission_id}"
-        if language == "python":
-            filename += ".py"
-            image = "python:3.9-slim"
-            run_cmd = f"python {filename}"
-            timeout = 4
-        elif language in ["cpp", "c++"]:
-            filename += ".cpp"
-            image = "gcc:latest"
-            compile_cmd = f"g++ -o {filename}_exec {filename}"
-            run_cmd = f"./{filename}_exec"
-            timeout = 2
-        elif language == "java":
-            filename = "Main.java"
-            image = "openjdk:11-jdk-slim"
-            compile_cmd = f"javac {filename}"
-            run_cmd = f"java {filename[:-5]}"
-            timeout = 2
-        elif language == "javascript":
-            filename += ".js"
-            image = "node:14-slim"
-            run_cmd = f"node {filename}"
-            timeout = 4
-        else:
+        if language not in LANGUAGE_CONFIG:
             return {"status": "failed", "message": "Unsupported programming language"}
+        
+        config = LANGUAGE_CONFIG[language]
+        extension = config.get('extension', '')
+        image = config['image']
+        timeout = config['timeout']
+
+        filename = f"submission_{submission_id}{extension}"
 
         work_dir = os.path.join(os.getcwd(), "..", "problems", f"submission_{submission_id}")
         output_dir = os.path.join(work_dir, "outputs")
@@ -77,11 +98,25 @@ def run_code_in_docker(code, language, submission_id, problem_id, test_case_path
         with open(os.path.join(work_dir, filename), "w") as f:
             f.write(code)
 
-        for i, (test_case, expected_output) in enumerate(zip(test_case_paths, expected_output_paths)):
-            subprocess.run(f"cp {test_case} {os.path.join(input_dir, f'in{i}.txt')}", shell=True)
-            subprocess.run(f"cp {expected_output} {os.path.join(expected_output_dir, f'out{i}.txt')}", shell=True)
+         # Handle custom testcase
+        if customTestcase:
+            with open(os.path.join(input_dir, 'custom_input.txt'), 'w') as f:
+                f.write(customTestcase)
+
+            test_case_paths = [os.path.join(input_dir, 'custom_input.txt')]
+            expected_output_paths = []
+        else:
+            for i, (test_case, expected_output) in enumerate(zip(test_case_paths, expected_output_paths)):
+                shutil.copy(test_case, os.path.join(input_dir, f'in{i}.txt'))
+                shutil.copy(expected_output, os.path.join(expected_output_dir, f'out{i}.txt'))
 
         if language in ["cpp", "c++", "java"]:
+            compile_cmd = config['compile_cmd'].format(
+                filename=filename,
+                exec_name=f"{filename}_exec",
+                classname=filename[:-5]  # For Java, filename is Main.java
+            )
+
             compile_result = subprocess.run(
                 f"docker run --rm -v {work_dir}:/app -w /app {image} {compile_cmd}",
                 shell=True, capture_output=True, text=True
@@ -96,11 +131,22 @@ def run_code_in_docker(code, language, submission_id, problem_id, test_case_path
                     "message": f"Compilation failed.",
                     "results": f"{formatted_error}"
                 }
+            
         final_correct_result = ""
+
         for i in range(len(test_case_paths)):
+            run_cmd = config['run_cmd'].format(
+                filename=filename,
+                exec_name=f"{filename}_exec",
+                classname=filename[:-5]
+            )
+
+            input_file = f'custom_input.txt' if customTestcase else f'in{i}.txt'
+            output_file = f'custom_output.txt' if customTestcase else f'output_{i}.txt'
+
             run_result = subprocess.run(
                 f"docker run --rm --memory=256m --cpus=1 -v {work_dir}:/app -w /app {image} "
-                f"sh -c 'timeout {timeout}s {run_cmd} < inputs/in{i}.txt | tee outputs/output_{i}.txt'",
+                f"sh -c 'timeout {timeout}s {run_cmd} < inputs/{input_file} | tee outputs/{output_file}'",
                 shell=True, capture_output=True, text=True
             )
 
@@ -111,33 +157,17 @@ def run_code_in_docker(code, language, submission_id, problem_id, test_case_path
                 }
             elif run_result.returncode != 0:
                 error_message = run_result.stderr
-                if "Segmentation fault" in error_message:
-                    return {
-                        "status": "runtime_error",
-                        "message": f"Segmentation fault occurred on testcase {i}. This typically indicates accessing memory that does not belong to your program."
-                    }
-                elif "std::bad_alloc" in error_message:
-                    return {
-                        "status": "runtime_error",
-                        "message": f"Memory allocation failed on testcase {i}. This usually means your program is trying to use more memory than available."
-                    }
-                elif language == "javascript" and "RangeError: Maximum call stack size exceeded" in error_message:
-                    return {
-                        "status": "runtime_error",
-                        "message": f"Stack overflow error occurred on testcase {i}. This usually indicates infinite recursion or excessive function calls."
-                    }
-                else:
-                    error_lines = error_message.split('\n')
-                    relevant_error = '\n'.join(error_lines[-5:])
-                    return {
-                        "status": "runtime_error",
-                        "message": f"Runtime error occurred on testcase {i}",
-                    }
+                return {
+                    "status": "runtime_error",
+                    "message": f"Runtime error occurred on testcase {i}",
+                    "results": error_message
+                }
 
-            with open(os.path.join(output_dir, f"output_{i}.txt"), "r") as f_output, \
-                 open(os.path.join(expected_output_dir, f"out{i}.txt"), "r") as f_expected:
-                if f_output.read().strip() != f_expected.read().strip():
-                    return {"status": "wrong_answer", "message": f"Failed on testcase {i}.", "results": run_result.stdout}
+            if not customTestcase:
+                with open(os.path.join(output_dir, f"output_{i}.txt"), "r") as f_output, \
+                    open(os.path.join(expected_output_dir, f"out{i}.txt"), "r") as f_expected:
+                    if f_output.read().strip() != f_expected.read().strip():
+                        return {"status": "wrong_answer", "message": f"Failed on testcase {i}.", "results": run_result.stdout}
 
             final_correct_result = run_result.stdout
 
@@ -148,55 +178,115 @@ def run_code_in_docker(code, language, submission_id, problem_id, test_case_path
         return {"status": "pending", "message": "Unexpected error occurred", "results": str(e)}
     finally:
         if os.path.exists(work_dir):
-            subprocess.run(f"rm -rf {work_dir}", shell=True)
+            shutil.rmtree(work_dir)
 
-@app.task
-def execute_program_submit(submission):
+
+def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
     try:
-        test_case_paths = [f"../problems/{submission['problem_id']}/in{i}.txt" for i in range(6)]
-        expected_output_paths = [f"../problems/{submission['problem_id']}/out{i}.txt" for i in range(6)]
+        results = {
+            "status": "",
+            "message": "",
+            "results": ""
+        }
+        config = LANGUAGE_CONFIG['c++']
+        image = config['image']
+        timeout = config['timeout']
+        filename = f"{problem_id}"
+        work_dir = os.path.join(os.getcwd(), "..", "problems", f"submission_{submission_id}")
+        input_dir = os.path.join(work_dir, "inputs")
+        os.makedirs(work_dir, exist_ok=True)
+        os.makedirs(input_dir, exist_ok=True)
 
-        results = run_code_in_docker(
-            submission['code'],
-            submission['language'],
-            submission['submission_id'],
-            submission['problem_id'],
-            test_case_paths,
-            expected_output_paths
+        # Write custom testcase to file
+        with open(os.path.join(input_dir, 'custom_input.txt'), 'w') as f:
+            f.write(customTestcase)
+
+        # Copy executable to work directory
+        exec_source = os.path.join(os.getcwd(), "..", "problems", problem_id, f"{filename}_exec")
+        exec_dest = os.path.join(work_dir, f"{filename}_exec")
+        shutil.copy(exec_source, exec_dest)
+
+        # Ensure the copied executable has the right permissions
+        os.chmod(exec_dest, 0o755)
+
+        input_file = 'custom_input.txt'
+        run_cmd = f"./{filename}_exec"
+
+        print(f'Custom Testcase : {customTestcase}')
+        
+        # Run the Docker command
+        docker_cmd = [
+            "docker", "run", "--rm", "--memory=256m", "--cpus=1",
+            "-v", f"{work_dir}:/app", "-w", "/app", image,
+            "sh", "-c", f"timeout {timeout}s {run_cmd} < inputs/{input_file}"
+        ]
+        
+        run_result = subprocess.run(
+            docker_cmd,
+            capture_output=True,
+            text=True
         )
 
-        # print(f"Program ran in Docker successfully with result : {results}")
+        if run_result.returncode == 124:
+            return {
+                "status": "time_limit_exceeded",
+                "message": f"Execution time exceeded {timeout} seconds on testcase."
+            }
+        elif run_result.returncode != 0:
+            error_message = run_result.stderr
+            return {
+                "status": "runtime_error",
+                "message": f"Runtime error occurred on the testcase",
+                "results": error_message
+            }
 
-        submission['status'] = results['status']
-        submission['message'] = results['message']
-        submission['results'] = ''
-
-        return submission
+        results = run_result.stdout
+        return results
     except Exception as e:
-        print(f"Error executing the task: {e}")
-        return None
-
+        print("Error in running in docker", e)
+        return {"status": "pending", "message": "Unexpected error occurred", "results": str(e)}
+    finally:
+        if os.path.exists(work_dir):
+            shutil.rmtree(work_dir)
+        
 
 @app.task
-def execute_program_run(submission):
+def execute_program(submission, mode='run'):
     try:
-        test_case_paths = [f"../problems/{submission['problem_id']}/in0.txt"]
-        expected_output_paths = [f"../problems/{submission['problem_id']}/out0.txt"]
+        customTestcase = submission.get('customTestcase', '')
 
-        results = run_code_in_docker(
-            submission['code'],
-            submission['language'],
-            submission['submission_id'],
-            submission['problem_id'],
-            test_case_paths,
-            expected_output_paths
-        )
-
-        # print(f"Program ran in Docker successfully with result : {results}")
+        if mode == 'submit':
+            num_test_cases = 6
+            test_case_paths = [f"../problems/{submission['problem_id']}/in{i}.txt" for i in range(num_test_cases)]
+            expected_output_paths = [f"../problems/{submission['problem_id']}/out{i}.txt" for i in range(num_test_cases)]
+        else:  # mode == 'run'
+            if customTestcase:
+                test_case_paths = []
+                expected_output_paths = []
+            else:
+                test_case_paths = [f"../problems/{submission['problem_id']}/in0.txt"]
+                expected_output_paths = [f"../problems/{submission['problem_id']}/out0.txt"]
+        
+        if submission['event'] == 'RC' and customTestcase:
+            results = run_customTestcase_in_docker(
+                submission['submission_id'],
+                submission['problem_id'],
+                customTestcase
+            )
+        else:
+            results = run_code_in_docker(
+                submission['code'],
+                submission['language'],
+                submission['submission_id'],
+                test_case_paths,
+                expected_output_paths,
+                customTestcase,
+                submission['event']
+            )
 
         submission['status'] = results['status']
         submission['message'] = results['message']
-        submission['results'] = results['results']
+        submission['results'] = results.get('results', '') if mode == 'run' else ''
 
         return submission
     except Exception as e:
@@ -225,23 +315,25 @@ def process_queue(queue_name = SUBMIT_QUEUE):
         if item is None:
             print(f"Queue {queue_name} is empty, waiting for new submissions...")
             return
-        
-        print(f"Item received from {queue_name}, {item}")
 
         _, value = item
         submission = json.loads(value)
 
-        # Decode from base64
+        # Decode code
         decoded_bytes = base64.b64decode(submission['code'])
-        # Convert bytes to string
         submission['code'] = decoded_bytes.decode('utf-8')
 
-        if queue_name == 'submitQueue':
-            result = execute_program_submit(submission)
-        else:
-            result = execute_program_run(submission)
+        if submission['customTestcase'] != "":
+            # Decode Testcase
+            decoded_bytes = base64.b64decode(submission['customTestcase'])
+            submission['customTestcase'] = decoded_bytes.decode('utf-8')
 
-        print(f"Program executed successfully with result : {result}")
+        mode = 'submit' if queue_name == 'submitQueue' else 'run'
+
+
+        result = execute_program(submission, mode=mode)
+
+        # print(f"Program executed successfully with result : {result}")
         
         if result:
             submission_result = {
