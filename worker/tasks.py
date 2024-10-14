@@ -37,6 +37,7 @@ LANGUAGE_CONFIG = {
         'image': 'python:3.9-alpine',
         'run_cmd': 'python {filename}',
         'timeout': 4,
+        'memory_limit': 256,  # 256 MB
     },
     'cpp': {
         'extension': '.cpp',
@@ -44,6 +45,7 @@ LANGUAGE_CONFIG = {
         'compile_cmd': 'g++ -o {exec_name} {filename}',
         'run_cmd': './{exec_name}',
         'timeout': 2,
+        'memory_limit': 256,  # 256 MB
     },
     'c++': {  # Alias for cpp
         'extension': '.cpp',
@@ -51,6 +53,7 @@ LANGUAGE_CONFIG = {
         'compile_cmd': 'g++ -o {exec_name} {filename}',
         'run_cmd': './{exec_name}',
         'timeout': 2,
+        'memory_limit': 256,  # 256 MB
     },
     'java': {
         'extension': '.java',
@@ -58,12 +61,14 @@ LANGUAGE_CONFIG = {
         'compile_cmd': 'javac {filename}',
         'run_cmd': 'java {classname}',
         'timeout': 2,
+        'memory_limit': 512,  # 512 MB (Java typically needs more memory)
     },
     'javascript': {
         'extension': '.js',
         'image': 'node:14-alpine',
         'run_cmd': 'node {filename}',
         'timeout': 4,
+        'memory_limit': 256,  # 256 MB
     },
 }
 
@@ -72,19 +77,26 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
     try:
         results = {
             "status": "accepted",
-            "message": "All testcases passed",
+            "message": "All test cases passed",
             "results": ""
         }
 
         if language not in LANGUAGE_CONFIG:
             return {"status": "failed", "message": "Unsupported programming language"}
-        
+
         config = LANGUAGE_CONFIG[language]
         extension = config.get('extension', '')
         image = config['image']
         timeout = config['timeout']
+        memory_limit = config['memory_limit']  # in MB
 
-        filename = f"submission_{submission_id}{extension}"
+        # Set filename and classname for Java
+        if language == 'java':
+            filename = "Main.java"
+            classname = "Main"
+        else:
+            filename = f"submission_{submission_id}{extension}"
+            classname = filename[:-5]  # Remove file extension
 
         work_dir = os.path.join(os.getcwd(), "..", "problems", f"submission_{submission_id}")
         output_dir = os.path.join(work_dir, "outputs")
@@ -94,11 +106,11 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
         os.makedirs(input_dir, exist_ok=True)
         os.makedirs(output_dir, exist_ok=True)
         os.makedirs(expected_output_dir, exist_ok=True)
-        
+
         with open(os.path.join(work_dir, filename), "w") as f:
             f.write(code)
 
-         # Handle custom testcase
+        # Handle custom testcase
         if customTestcase:
             with open(os.path.join(input_dir, 'custom_input.txt'), 'w') as f:
                 f.write(customTestcase)
@@ -114,7 +126,7 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
             compile_cmd = config['compile_cmd'].format(
                 filename=filename,
                 exec_name=f"{filename}_exec",
-                classname=filename[:-5]  # For Java, filename is Main.java
+                classname=classname  # For Java, filename is Main.java
             )
 
             compile_result = subprocess.run(
@@ -131,7 +143,7 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
                     "message": f"Compilation failed.",
                     "results": f"{formatted_error}"
                 }
-            
+
         final_correct_result = ""
 
         for i in range(len(test_case_paths)):
@@ -144,32 +156,70 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
             input_file = f'custom_input.txt' if customTestcase else f'in{i}.txt'
             output_file = f'custom_output.txt' if customTestcase else f'output_{i}.txt'
 
-            run_result = subprocess.run(
-                f"docker run --rm --memory=256m --cpus=1 -v {work_dir}:/app -w /app {image} "
-                f"sh -c 'timeout {timeout}s {run_cmd} < inputs/{input_file} | tee outputs/{output_file}'",
-                shell=True, capture_output=True, text=True
-            )
+            container_name = f"submission_{submission_id}_testcase_{i}"
+            docker_cmd = [
+                "docker", "run",
+                "--name", container_name,
+                f"--memory={memory_limit}m",
+                "--cpus=1",
+                "--ulimit", f"cpu={timeout}",
+                "-v", f"{work_dir}:/app",
+                "-w", "/app",
+                image,
+                "sh", "-c", f"{run_cmd} < inputs/{input_file} > outputs/{output_file} 2>&1"
+            ]
 
-            if run_result.returncode == 124:
-                return {
-                    "status": "time_limit_exceeded",
-                    "message": f"Execution time exceeded {timeout} seconds on testcase {i}."
-                }
-            elif run_result.returncode != 0:
-                error_message = run_result.stderr
+            try:
+                result = subprocess.run(docker_cmd, capture_output=True, text=True)
+            except subprocess.CalledProcessError as e:
+                # Handle error if docker command itself fails
                 return {
                     "status": "runtime_error",
-                    "message": f"Runtime error occurred on testcase {i}",
-                    "results": error_message
+                    "message": f"An error occurred while running the docker container: {e}",
+                    "results": e.stderr
+                }
+
+            exit_code = result.returncode
+
+            # Inspect the container to get OOMKilled status
+            inspect_cmd = ["docker", "inspect", container_name, "--format={{.State.OOMKilled}}"]
+            inspect_result = subprocess.run(inspect_cmd, capture_output=True, text=True)
+            oom_killed = inspect_result.stdout.strip().lower() == 'true'
+
+            # Remove the container
+            subprocess.run(["docker", "rm", container_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            if exit_code == 137:
+                if oom_killed:
+                    return {
+                        "status": "memory_limit_exceeded",
+                        "message": f"Memory usage exceeded {memory_limit} MB."
+                    }
+                else:
+                    return {
+                        "status": "time_limit_exceeded",
+                        "message": f"Execution time exceeded {timeout} seconds."
+                    }
+            elif exit_code != 0:
+                # Read the error output
+                with open(os.path.join(output_dir, output_file), 'r') as f:
+                    error_output = f.read()
+                return {
+                    "status": "runtime_error",
+                    "message": f"Runtime error occurred on testcase {i}. Exit code: {exit_code}",
+                    "results": error_output
                 }
 
             if not customTestcase:
-                with open(os.path.join(output_dir, f"output_{i}.txt"), "r") as f_output, \
-                    open(os.path.join(expected_output_dir, f"out{i}.txt"), "r") as f_expected:
+                with open(os.path.join(output_dir, output_file), "r") as f_output, \
+                     open(os.path.join(expected_output_dir, f"out{i}.txt"), "r") as f_expected:
                     if f_output.read().strip() != f_expected.read().strip():
-                        return {"status": "wrong_answer", "message": f"Failed on testcase {i}.", "results": run_result.stdout}
+                        with open(os.path.join(output_dir, output_file), 'r') as f:
+                            output = f.read()
+                        return {"status": "wrong_answer", "message": f"Failed on testcase {i}.", "results": output}
 
-            final_correct_result = run_result.stdout
+            with open(os.path.join(output_dir, output_file), 'r') as f:
+                final_correct_result = f.read()
 
         results['results'] = final_correct_result
         return results
@@ -179,6 +229,7 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
     finally:
         if os.path.exists(work_dir):
             shutil.rmtree(work_dir)
+
 
 
 def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
@@ -191,47 +242,60 @@ def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
         config = LANGUAGE_CONFIG['c++']
         image = config['image']
         timeout = config['timeout']
-        filename = f"{problem_id}"
-        work_dir = os.path.join(os.getcwd(), "..", "problems", f"submission_{submission_id}")
+        
+        # Convert submission_id and problem_id to strings
+        filename = f"{str(problem_id)}"
+        work_dir = os.path.join(os.getcwd(), "..", "problems", f"submission_{str(submission_id)}")
         input_dir = os.path.join(work_dir, "inputs")
+        
+        # Create directories if not existing
         os.makedirs(work_dir, exist_ok=True)
         os.makedirs(input_dir, exist_ok=True)
 
-        # Write custom testcase to file
+        # Write custom test case to file
         with open(os.path.join(input_dir, 'custom_input.txt'), 'w') as f:
             f.write(customTestcase)
 
-        # Copy executable to work directory
-        exec_source = os.path.join(os.getcwd(), "..", "problems", problem_id, f"{filename}_exec")
-        exec_dest = os.path.join(work_dir, f"{filename}_exec")
-        shutil.copy(exec_source, exec_dest)
+        # Copy the solution source code to the work directory
+        sol_source = os.path.join(os.getcwd(), "..", "problems", str(problem_id), "solution.cpp")
+        exec_dest = os.path.join(work_dir, f"{filename}.cpp")
+        shutil.copy(sol_source, exec_dest)
 
-        # Ensure the copied executable has the right permissions
+        # Ensure the copied solution has the right permissions (for Docker run)
         os.chmod(exec_dest, 0o755)
 
         input_file = 'custom_input.txt'
-        run_cmd = f"./{filename}_exec"
-
-        print(f'Custom Testcase : {customTestcase}')
+        exec_name = f"{filename}_exec"
+        cpp_file = f"{filename}.cpp"
         
-        # Run the Docker command
+        # Docker compilation and execution commands
+        compile_cmd = f"g++ -o {exec_name} {cpp_file}"
+        run_cmd = f"./{exec_name} < inputs/{input_file}"
+
+        # Print custom test case for debugging
+        print(f'Custom Testcase : {customTestcase}')
+
+        # Run the Docker container to compile and execute the solution
         docker_cmd = [
             "docker", "run", "--rm", "--memory=256m", "--cpus=1",
             "-v", f"{work_dir}:/app", "-w", "/app", image,
-            "sh", "-c", f"timeout {timeout}s {run_cmd} < inputs/{input_file}"
+            "sh", "-c", f"{compile_cmd} && timeout {timeout}s {run_cmd}"
         ]
-        
+
+        # Execute the Docker command
         run_result = subprocess.run(
             docker_cmd,
             capture_output=True,
-            text=True
+            text=True 
         )
 
+        # Check for time limit exceeded
         if run_result.returncode == 124:
             return {
                 "status": "time_limit_exceeded",
                 "message": f"Execution time exceeded {timeout} seconds on testcase."
             }
+        # Check for other runtime errors
         elif run_result.returncode != 0:
             error_message = run_result.stderr
             return {
@@ -240,10 +304,15 @@ def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
                 "results": error_message
             }
 
+        # Return 'accepted' as status for a successful run
         results = run_result.stdout
-        return results
+        return {
+            "status": "accepted",  # Mapping 'success' to 'accepted' for valid enum
+            "message": "Custom test case executed successfully.",
+            "results": results
+        }
     except Exception as e:
-        print("Error in running in docker", e)
+        print(f"Error in running Docker: {e}")
         return {"status": "pending", "message": "Unexpected error occurred", "results": str(e)}
     finally:
         if os.path.exists(work_dir):
@@ -366,5 +435,5 @@ app.conf.beat_schedule = {
     }
 }
 
-if __name__ == "__main__":
+if __name__ == "_main_":
     app.start()
