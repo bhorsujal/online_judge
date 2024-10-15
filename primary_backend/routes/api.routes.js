@@ -6,6 +6,12 @@ const { register, login, logout } = require('../controllers/auth.controller.js')
 const { body, validationResult } = require('express-validator');
 const { authMiddleware } = require('../middlewares/auth.middleware.js');
 const { pollSubmissionStatus }  = require('../controllers/polling.controller.js');
+const User = require('../models/user.model.js');
+const { getLeaderboard } = require('../controllers/leaderboard.controller.js');
+
+
+// Leaderboard Route
+router.get('/leaderboard', getLeaderboard);
 
 // Registration Route
 router.post('/register', register);

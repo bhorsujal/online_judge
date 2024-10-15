@@ -56,11 +56,15 @@ const Submission = sequelize.define('Submission', {
     event: {
         type: DataTypes.ENUM('NCC', 'RC'),
         allowNull: false,
+    },
+    solved: {
+        type: DataTypes.BOOLEAN,  // A flag to indicate if the problem was solved by the user
+        defaultValue: false
     }
 }, {
     tableName: 'submissions',
     timestamps: true,
-}); 
+});
 
 
 Submission.associate = (models) => {

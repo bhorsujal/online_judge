@@ -254,7 +254,7 @@ def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
         run_result = subprocess.run(
             docker_cmd,
             capture_output=True,
-            text=True,
+            text=True
         )
 
         # Check for time limit exceeded
@@ -381,7 +381,10 @@ def process_queue(queue_name = SUBMIT_QUEUE):
                 "user_id": result['user_id'],
                 "results": result['results'],
                 "message": result['message'],
-                "status": result['status']
+                "status": result['status'],
+                "event": submission['event'],
+                "action": mode
+                
             }
             
             send_result_to_webhook(submission_result)

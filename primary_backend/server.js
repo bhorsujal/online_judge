@@ -11,6 +11,7 @@ const Submission = require('./models/submission.model.js');
 const User = require('./models/user.model.js');
 require("dotenv").config();
 const { startCleanupJob } = require('./jobs/clean.jobs.js');
+const { leaderboard } = require('./controllers/leaderboard.controller.js');
 
 const app = express();
 

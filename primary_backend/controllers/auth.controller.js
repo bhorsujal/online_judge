@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookie=require('cookie-parser');
-const User = require('../models/user.model.js');
+    const User = require('../models/user.model.js');
 require('dotenv').config();
 
 const register = async (req, res) => {
