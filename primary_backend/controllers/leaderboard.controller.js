@@ -1,6 +1,6 @@
 const User = require('../models/user.model')
 
-console.log('User model attributes:', User.getAttributes());
+// console.log('User model attributes:', User.getAttributes());
 // Controller function to handle fetching the leaderboard
 const getLeaderboard = async (req, res) => {
     try {

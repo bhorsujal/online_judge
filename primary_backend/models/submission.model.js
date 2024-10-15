@@ -17,7 +17,7 @@ const Submission = sequelize.define('Submission', {
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE',
     },
-    user_id: { // Assuming you have a User model
+    user_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
@@ -59,13 +59,16 @@ const Submission = sequelize.define('Submission', {
     },
     solved: {
         type: DataTypes.BOOLEAN,  // A flag to indicate if the problem was solved by the user
-        defaultValue: false
+        defaultValue: false,
+    },
+    checked: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
     }
 }, {
     tableName: 'submissions',
     timestamps: true,
 });
-
 
 Submission.associate = (models) => {
     Submission.belongsTo(models.Problem, { foreignKey: 'problem_id' });
@@ -73,3 +76,4 @@ Submission.associate = (models) => {
 };
 
 module.exports = Submission;
+    

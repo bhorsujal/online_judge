@@ -1,24 +1,30 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookie=require('cookie-parser');
-    const User = require('../models/user.model.js');
+const User = require('../models/user.model.js');
 require('dotenv').config();
+
 
 const register = async (req, res) => {
     try {
         const { email, password, event, category } = req.body;
 
+        // Ensure all fields are present
         if(!email || !password || !event || !category){
-            return res.status(400).json({ message : 'Email and Password are required' });
+            return res.status(400).json({ message : 'Email, Password, Event, and Category are required' });
         }
 
-        const existingUser = await User.findOne( { where : { email : email, event : event } });
+        // Check if a user with the same email and event already exists
+        const existingUser = await User.findOne( { where : { email: email, event: event } });
 
         if (existingUser) {
-            return res.status(400).json({ message: 'User already exists!' });
+            return res.status(400).json({ message: 'User already registered for this event!' });
         }
 
+        // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create a new user with the hashed password
         const newUser = new User({
             email,
             password: hashedPassword,
@@ -30,9 +36,12 @@ const register = async (req, res) => {
         res.status(201).json({ message: 'User registered successfully' });
     }
     catch(error) {
+        console.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+module.exports = { register };
 
 
 const login = async (req, res) => {

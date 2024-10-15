@@ -1,0 +1,46 @@
+
+
+As a scientist confronting a virus outbreak, your mission is to devise a treatment strategy to mitigate the crisis.
+
+After extensive analysis, you have formulated a treatment plan involving the injection of a specific quantity of anti-virus into the infected individual.
+
+This quantity precisely matches the amount of virus present, ensuring effective neutralization.
+
+Notably, you've observed that the anti-virus unit splits into three units when left overnight.
+
+Given the initial virus load, your objective is to determine the minimum dosage of anti-virus required for treatment.
+
+
+Input Format
+
+The first line of input contains an integer t the number of test-cases.
+The second line contains a single integer k the initial virus load.
+
+
+Output Format
+
+For each input value, output the amount of anti-virus units required for developing the treatment.
+
+
+Constrainsts
+1 <= t <= 10^4
+0 <= k <= 10 ^9
+
+Sample
+2
+9
+11
+
+output
+1
+3
+
+
+Explanation
+
+Case 1 : 1 unit of anti-virus left for 2 days will split into exactly 9 units.
+
+Case 2 : Count of anti-virus units on day 0 -> 1
+day 1 -> 3
+day 2 -> 9
+Adding 2 anti-virus units on day 2 will give the exact required amount of 11.

@@ -88,14 +88,15 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
         extension = config.get('extension', '')
         image = config['image']
         timeout = config['timeout']
-        
+        memory_limit = config['memory_limit']  # in MB
+
+        # Set filename and classname for Java
         if language == 'java':
-            filename = f"Main.java"
+            filename = "Main.java"
             classname = "Main"
         else:
-            filename = f"subimssion_{submission_id}{extension}"
-            classname = filename[:-5]
-            
+            filename = f"submission_{submission_id}{extension}"
+            classname = filename[:-5]  # Remove file extension
 
         work_dir = os.path.join(os.getcwd(), "..", "problems", f"submission_{submission_id}")
         output_dir = os.path.join(work_dir, "outputs")
@@ -125,7 +126,7 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
             compile_cmd = config['compile_cmd'].format(
                 filename=filename,
                 exec_name=f"{filename}_exec",
-                classname=classname # For Java, filename is Main.java
+                classname=classname  # For Java, filename is Main.java
             )
 
             compile_result = subprocess.run(
@@ -154,40 +155,71 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
 
             input_file = f'custom_input.txt' if customTestcase else f'in{i}.txt'
             output_file = f'custom_output.txt' if customTestcase else f'output_{i}.txt'
-            
-            try:
-                run_result = subprocess.run(
-                    f"docker run --rm --memory=256m --cpus=1 -v {work_dir}:/app -w /app {image} "
-                    f"sh -c 'timeout {timeout}s {run_cmd} < inputs/{input_file} | tee outputs/{output_file}'",
-                    shell=True, capture_output=True, text=True,timeout=timeout+5
-                )
 
-                if run_result.returncode == 124:
+            container_name = f"submission_{submission_id}_testcase_{i}"
+            docker_cmd = [
+                "docker", "run",
+                "--name", container_name,
+                f"--memory={memory_limit}m",
+                "--cpus=1",
+                "--ulimit", f"cpu={timeout}",
+                "-v", f"{work_dir}:/app",
+                "-w", "/app",
+                image,
+                "sh", "-c", f"{run_cmd} < inputs/{input_file} > outputs/{output_file} 2>&1"
+            ]
+
+            try:
+                result = subprocess.run(docker_cmd, capture_output=True, text=True)
+            except subprocess.CalledProcessError as e:
+                # Handle error if docker command itself fails
+                return {
+                    "status": "runtime_error",
+                    "message": f"An error occurred while running the docker container: {e}",
+                    "results": e.stderr
+                }
+
+            exit_code = result.returncode
+
+            # Inspect the container to get OOMKilled status
+            inspect_cmd = ["docker", "inspect", container_name, "--format={{.State.OOMKilled}}"]
+            inspect_result = subprocess.run(inspect_cmd, capture_output=True, text=True)
+            oom_killed = inspect_result.stdout.strip().lower() == 'true'
+
+            # Remove the container
+            subprocess.run(["docker", "rm", container_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            if exit_code == 137:
+                if oom_killed:
+                    return {
+                        "status": "memory_limit_exceeded",
+                        "message": f"Memory usage exceeded {memory_limit} MB."
+                    }
+                else:
                     return {
                         "status": "time_limit_exceeded",
-                        "message": f"Execution time exceeded {timeout} seconds on testcase {i}."
+                        "message": f"Execution time exceeded {timeout} seconds."
                     }
-                elif run_result.returncode != 0:
-                    error_message = run_result.stderr
-                    return {
-                        "status": "runtime_error",
-                        "message": f"Runtime error occurred on testcase {i}",
-                        "results": error_message
-                    }
-
-                if not customTestcase:
-                    with open(os.path.join(output_dir, f"output_{i}.txt"), "r") as f_output, \
-                        open(os.path.join(expected_output_dir, f"out{i}.txt"), "r") as f_expected:
-                        if f_output.read().strip() != f_expected.read().strip():
-                            return {"status": "wrong_answer", "message": f"Failed on testcase {i}.", "results": run_result.stdout}
-
-                final_correct_result = run_result.stdout
-            
-            except subprocess.TimeoutExpired:
+            elif exit_code != 0:
+                # Read the error output
+                with open(os.path.join(output_dir, output_file), 'r') as f:
+                    error_output = f.read()
                 return {
-                    "status": "time_limit_exceeded",
-                    "message": f"Execution time exceeded {timeout} seconds on testcase {i}."
+                    "status": "runtime_error",
+                    "message": f"Runtime error occurred on testcase {i}. Exit code: {exit_code}",
+                    "results": error_output
                 }
+
+            if not customTestcase:
+                with open(os.path.join(output_dir, output_file), "r") as f_output, \
+                     open(os.path.join(expected_output_dir, f"out{i}.txt"), "r") as f_expected:
+                    if f_output.read().strip() != f_expected.read().strip():
+                        with open(os.path.join(output_dir, output_file), 'r') as f:
+                            output = f.read()
+                        return {"status": "wrong_answer", "message": f"Failed on testcase {i}.", "results": output}
+
+            with open(os.path.join(output_dir, output_file), 'r') as f:
+                final_correct_result = f.read()
 
         results['results'] = final_correct_result
         return results
@@ -254,7 +286,7 @@ def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
         run_result = subprocess.run(
             docker_cmd,
             capture_output=True,
-            text=True
+            text=True 
         )
 
         # Check for time limit exceeded
@@ -283,11 +315,9 @@ def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
         print(f"Error in running Docker: {e}")
         return {"status": "pending", "message": "Unexpected error occurred", "results": str(e)}
     finally:
-        # Optional cleanup (uncomment if necessary)
         if os.path.exists(work_dir):
             shutil.rmtree(work_dir)
-        # pass
-       
+        
 
 @app.task
 def execute_program(submission, mode='run'):
@@ -306,7 +336,7 @@ def execute_program(submission, mode='run'):
                 test_case_paths = [f"../problems/{submission['problem_id']}/in0.txt"]
                 expected_output_paths = [f"../problems/{submission['problem_id']}/out0.txt"]
         
-        if submission['event'] == 'RC' and customTestcase and mode=='run':
+        if submission['event'] == 'RC' and customTestcase:
             results = run_customTestcase_in_docker(
                 submission['submission_id'],
                 submission['problem_id'],
@@ -367,7 +397,7 @@ def process_queue(queue_name = SUBMIT_QUEUE):
             decoded_bytes = base64.b64decode(submission['customTestcase'])
             submission['customTestcase'] = decoded_bytes.decode('utf-8')
 
-        mode = 'submit' if queue_name == 'submitQueue' else 'run'
+        mode = 'SUBMIT' if queue_name == 'submitQueue' else 'RUN'
 
 
         result = execute_program(submission, mode=mode)
@@ -382,9 +412,8 @@ def process_queue(queue_name = SUBMIT_QUEUE):
                 "results": result['results'],
                 "message": result['message'],
                 "status": result['status'],
-                "event": submission['event'],
-                "action": mode
-                
+                "event": result['event'],
+                "action":mode
             }
             
             send_result_to_webhook(submission_result)

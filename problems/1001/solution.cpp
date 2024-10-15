@@ -1,67 +1,45 @@
-#include <bits/stdc++.h>
+#include <iostream>
+#include <cmath>
 using namespace std;
-#define int long long
-typedef long long ll;
 
-bool isPrime(int n){
-	if(n==1) return false;
-	for(int i=2;i*i<=n;i++){
-		if(n%i==0)
-			return false;
-	}
-	return true;
-}
-
-bool winner(int n, int k) {
-
-    if (n == 0) return false;
-    if (n <= 2) return true;
-
-    vector<bool> dp(n+1, false);
-    dp[1] = dp[2] = true;
-
-    for (int i = 3; i <= n; i++) {
-        dp[i] = !dp[i-1] || (i-k >= 0 && !dp[i-k]) || (i-2 >= 0 && !dp[i-2]);
-    }
-
-    return dp[n];
-}
-
-void duck(){
-     int n;
-       cin>>n;
-       int m=2*n;
-       int arr[m];
-       for(int j=0;j<m;j++){
-           cin>>arr[j];
-       }
-
-       sort(arr,arr+m);
-
-
-       cout<<abs(arr[n-1]-arr[n])<<endl;
-}
-
-
-// }
-signed main()
+long long convertToTernary(long long N)
 {
-    long long test;
-    cin>>test;
-    while(test--){
-         duck();
-       // isPrime()
-    }
-    return 0;
+    if (N == 0)
+        return 0;
+
+    long long quotient = N / 3;
+    long long remainder = abs(N % 3);
+    long long result = convertToTernary(quotient);
+
+    return result * 10 + remainder;
 }
 
-// #include <bits/stdc++.h>
-// using namespace std;
-// int main(){
-//     string a,b;
-//     cin>>a;
-//     cin>>b;
+long long convert(long long Decimal)
+{
+    if (Decimal != 0) {
+        return convertToTernary(Decimal);
+    }
+    else {
+        return 0;
+    }
+}
 
-//     cout<<a<<" "<<b;
-//     return 0;
-// }
+int main() {
+	long t;
+	cin >> t;
+	while(t--) {
+	    long n;
+	    long r = 0;
+	    cin >> n;
+
+	    long t = convert(n);
+
+	    while (t != 0) {
+	        r += (t % 10);
+	        t /= 10;
+	    }
+
+	    cout << r << endl;
+	}
+	return 0;
+}

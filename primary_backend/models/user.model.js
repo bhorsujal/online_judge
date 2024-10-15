@@ -10,7 +10,7 @@ const User = sequelize.define('User', {
     email: {
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true,
+        // Remove global uniqueness constraint
     },
     password: {
         type: DataTypes.STRING,
@@ -24,17 +24,31 @@ const User = sequelize.define('User', {
         type: DataTypes.ENUM('junior', 'senior'),
         allowNull: false,
     },
+    questions_solved: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+    },
+    wrong_submissions: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+    },
     score: {
         type: DataTypes.INTEGER,
         defaultValue: 0,
     },
     last_score_updated_time: {
-        type: DataTypes.INTEGER, // Store total time in seconds or milliseconds
+        type: DataTypes.INTEGER,
         defaultValue: 0,
     }
 }, {
     tableName: 'users',
-    timestamps: true, // Adds createdAt and updatedAt fields
+    timestamps: true,
+    indexes: [
+        {
+            unique: true,
+            fields: ['email', 'event'] // Add unique constraint on email + event
+        }
+    ]
 });
 
 module.exports = User;

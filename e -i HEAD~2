@@ -1,0 +1,244 @@
+[33mcommit af4a49de9d077c91dc400078d9956d88258cceed[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mavadhut[m[33m, [m[1;31morigin/avadhut[m[33m)[m
+Merge: bf2a289 6f0842c
+Author: Avadhutgiri <avadg252@gmail.com>
+Date:   Tue Oct 15 12:32:31 2024 +0530
+
+    Merged branch completeRevamp with local changes
+
+[33mcommit bf2a2892c95938857f5f50b988e692fbd2de9ac1[m
+Author: Avadhutgiri <avadg252@gmail.com>
+Date:   Tue Oct 15 12:29:04 2024 +0530
+
+    Implement the score foe problem
+
+[33mcommit 6f0842c50528d34e764b4ac1d66ff57776046444[m[33m ([m[1;31morigin/completeRevamp[m[33m, [m[1;32mcompleteRevamp[m[33m)[m
+Author: Atharv Fakatkar <atharvfakatkar56@gmail.com>
+Date:   Mon Oct 14 20:22:21 2024 +0530
+
+    Bug fixes
+    - Implement TLE and MLE
+    - Fix custom testcase for RC
+
+[33mcommit 05a88caaaf6ac617a070506d9ce3e82a2f08ca5e[m
+Author: Avadhutgiri <avadg252@gmail.com>
+Date:   Sun Oct 13 17:36:56 2024 +0530
+
+    Implementation of run custom test cases IN RC
+
+[33mcommit a84f82b07290494d3e0df5ae58c4c8ad7c1a012e[m
+Author: Atharv Fakatkar <atharvfakatkar56@gmail.com>
+Date:   Sun Oct 13 10:05:37 2024 +0530
+
+    Implement custom testcase
+    - Add event, customTestcase in primary_backend models
+
+[33mcommit b107827fed4ac6e39a117a7ec480f4fa20a8e757[m
+Author: Atharv Fakatkar <atharvfakatkar56@gmail.com>
+Date:   Sun Oct 6 09:55:12 2024 -0500
+
+    Seperate runQueue and submitQueue implementation
+
+[33mcommit e06130ee71f0feeaed5f73a585df6283b00345d4[m
+Merge: 7291d7b 465bba3
+Author: Atharv Fakatkar <atharvfakatkar56@gmail.com>
+Date:   Sun Oct 6 07:22:31 2024 -0500
+
+    Merge branch 'main' of github.com:bhorsujal/online_judge into completeRevamp
+
+[33mcommit 7291d7b04319ac5f48a7383f7e68f93d030cd29e[m
+Author: Atharv Fakatkar <atharvfakatkar56@gmail.com>
+Date:   Sun Oct 6 07:21:26 2024 -0500
+
+    Add support for JavaScript
+
+[33mcommit 465bba39aee38a6861505068613d1b7d89167cc5[m
+Merge: 1026826 715ab6a
+Author: Sujal Bhor <bhorsujal@gmail.com>
+Date:   Sun Oct 6 14:54:17 2024 +0530
+
+    Merge branch 'sujal' with 'main'
+
+[33mcommit 715ab6ab1f7e18708a648a9335da2967864cdf82[m
+Author: Atharv Fakatkar <atharvfakatkar56@gmail.com>
+Date:   Sun Oct 6 04:17:25 2024 -0500
+
+    Architectural change
+    - Remove Fastapi (secondary backend)
+    - Implement Celery with beat
+    - Use Flower for monitoring
+
+[33mcommit bc50436d2f375ac2c7a8077fad5b34b09e6cc0af[m[33m ([m[1;31morigin/atharv[m[33m)[m
+Author: Atharv Fakatkar <atharvfakatkar56@gmail.com>
+Date:   Sat Oct 5 08:42:33 2024 -0500
+
+    Implement TLE (partial)
+
+[33mcommit f442c2e411f6bc7f9bc41b06d02a45a13790417f[m
+Author: Atharv Fakatkar <atharvfakatkar56@gmail.com>
+Date:   Sat Oct 5 06:08:16 2024 -0500
+
+    Implement worker functionality(complete)
+    - Set correct file paths
+    - Implement judger for python
+    - Implement polling
+
+[33mcommit 7fcd25903a344729e85b5718bd61e951a6785994[m
+Merge: fb21ee5 c85259c
+Author: Atharv Fakatkar <atharvfakatkar56@gmail.com>
+Date:   Sat Oct 5 03:13:57 2024 -0500
+
+    Implement worker functionality for program execution(partial)
+
+[33mcommit c85259c5a40b1cd50a75b3b20faca758fd93c392[m
+Author: Avadhutgiri <avadg252@gmail.com>
+Date:   Fri Oct 4 20:49:38 2024 +0530
+
+    input test case allowed
+
+[33mcommit fb21ee5aba4aa55b3e090b2676702a547810639d[m
+Merge: 2f268a7 89844be
+Author: Atharv Fakatkar <atharvfakatkar56@gmail.com>
+Date:   Fri Oct 4 08:57:26 2024 -0500
+
+    Merge branch 'atharv' of github.com:bhorsujal/online_judge into atharv
+
+[33mcommit 3685065ac2425bb7796a4af9826552b996f8f588[m
+Author: Avadhutgiri <avadg252@gmail.com>
+Date:   Fri Oct 4 19:26:05 2024 +0530
+
+    Code execution begins
+
+[33mcommit 89844bebe10c2475be6964f0ba117129662052e1[m
+Author: Atharv Fakatkar <atharvfakatkar56@gmail.com>
+Date:   Fri Oct 4 00:42:58 2024 +0530
+
+    Implement Redis_listener, Fastapi workers and Webhook for secondary backend
+
+[33mcommit 2f268a76504cc66be34d0c1b94f767f291e93e01[m
+Merge: be314ed 026f809
+Author: Avadhutgiri <avadg252@gmail.com>
+Date:   Thu Oct 3 14:41:32 2024 +0530
+
+    Merge branch 'ayush' of github.com:bhorsujal/online_judge into avadhut
+
+[33mcommit be314edc1cbaa95f98bff4c73e202e998ff126d8[m[33m ([m[1;31morigin/siddhesh[m[33m)[m
+Author: siddhesh <siddheshsangale0705@gmail.com>
+Date:   Thu Oct 3 01:50:57 2024 +0530
+
+    Restructure of project directories, Addition of Secondary backend
+
+[33mcommit 026f8094f6fe259f7b3e1b305ecf71bccf3f9983[m[33m ([m[1;31morigin/ayush[m[33m)[m
+Author: ayush <ayushmatkar2004@gmail.com>
+Date:   Wed Oct 2 21:15:21 2024 +0530
+
+    Resolve req.user
+
+[33mcommit 7dd753eaed08d6393ab9b8ad7b31097367daa04f[m
+Merge: acc7c7a 646a149
+Author: siddhesh <siddheshsangale0705@gmail.com>
+Date:   Wed Oct 2 20:22:07 2024 +0530
+
+    Merge branch 'ayush' of https://github.com/bhorsujal/online_judge into siddhesh
+
+[33mcommit acc7c7a8a4bedcf5b8b86862f623031d700f69e3[m
+Author: siddhesh <siddheshsangale0705@gmail.com>
+Date:   Wed Oct 2 20:21:31 2024 +0530
+
+    Resolve runSubmit controller errors
+
+[33mcommit 646a1499519db463b5a6368ffb745c2ee33b7150[m
+Author: ayush <ayushmatkar2004@gmail.com>
+Date:   Wed Oct 2 20:18:09 2024 +0530
+
+    Resolve logout issue
+
+[33mcommit d2d7efee5746747e06b6120d670b9c45c2fc57f8[m
+Author: siddhesh <siddheshsangale0705@gmail.com>
+Date:   Wed Oct 2 16:57:11 2024 +0530
+
+    some auth changes
+
+[33mcommit ee7f8872c7248e36a3e4c3e44be1e272e2e7c5e2[m
+Author: Sujal Bhor <bhorsujal@gmail.com>
+Date:   Wed Oct 2 13:35:54 2024 +0530
+
+    Add try catch to auth Controller
+
+[33mcommit 1a5c8855b91c67fc154ae373c6e7f2746b4f7e17[m
+Merge: eeeddde badc6dd
+Author: Sujal Bhor <bhorsujal@gmail.com>
+Date:   Wed Oct 2 13:11:15 2024 +0530
+
+    Merge branch 'ayush' into sujal
+
+[33mcommit eeeddde65300688f1657af20d0042e83ca61c4bd[m
+Author: Sujal Bhor <bhorsujal@gmail.com>
+Date:   Wed Oct 2 13:10:24 2024 +0530
+
+    Change file names according to standards
+
+[33mcommit a07c52860ef533a0f3878c3e2801c63a580d16ab[m
+Merge: cae9cce e2055b4
+Author: Sujal Bhor <bhorsujal@gmail.com>
+Date:   Wed Oct 2 13:00:19 2024 +0530
+
+    Merge branch 'sujal' into 'sujal'
+
+[33mcommit e2055b4cbfff1154e33723c5fda966d1de44b128[m
+Author: siddhesh <siddheshsangale0705@gmail.com>
+Date:   Wed Oct 2 09:37:13 2024 +0530
+
+    db.define error solved
+
+[33mcommit badc6dd2ac389ba464e0840f955086c59326edff[m
+Author: ayush <ayushmatkar2004@gmail.com>
+Date:   Wed Oct 2 01:49:04 2024 +0530
+
+    Authentication done
+
+[33mcommit 0b19e701631dada54ca109595f9dda165fb3d7ad[m
+Author: ayush <ayushmatkar2004@gmail.com>
+Date:   Tue Oct 1 19:28:45 2024 +0530
+
+    Authentication initial
+
+[33mcommit cae9ccea442359003d25e320c1d90fe203e5e5a8[m
+Author: Sujal Bhor <bhorsujal@gmail.com>
+Date:   Tue Oct 1 19:02:03 2024 +0530
+
+    Remove clean controller, because duplicate in jobs
+
+[33mcommit bb9c5165d96b1d3bcf41baf3a21355d4f8631161[m
+Author: Sujal Bhor <bhorsujal@gmail.com>
+Date:   Tue Oct 1 15:56:02 2024 +0530
+
+    Primary backend almost ready
+    1. Add runSubmit controller to save submission in database as well as push to redis queue
+    2. Add cron job for deleting completed RUN entries in database (every
+       half hour)
+    3. Add polling controller to give status and output for particular
+       submission id
+    4. Add webhook controller to receive data from secondary backend and
+       update accordingly to the database
+    5. Add clean controller to handle deletion of RUN entries from database
+       (but is deprecated and should be removed)
+    6. Install node-cron for cron job handling
+
+[33mcommit 9198e3104981008b9632216252fd21a42df67f8d[m
+Author: Sujal Bhor <bhorsujal@gmail.com>
+Date:   Tue Oct 1 11:11:36 2024 +0530
+
+    Add user model and auth middleware
+    Add promise to coat the redis operations for async usage
+
+[33mcommit 1026826acdc7fade46d9a40c3a2a33ade884184f[m
+Author: Xcept1on <129622595+bhorsujal@users.noreply.github.com>
+Date:   Mon Sep 30 18:59:22 2024 +0530
+
+    Initial commit
+
+[33mcommit 9065bb329080582e56747e098bcdc87fe00dbf57[m
+Author: Sujal Bhor <bhorsujal@gmail.com>
+Date:   Mon Sep 30 18:57:41 2024 +0530
+
+    Basic redis queue pushing
