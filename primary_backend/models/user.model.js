@@ -23,6 +23,14 @@ const User = sequelize.define('User', {
     category: {
         type: DataTypes.ENUM('junior', 'senior'),
         allowNull: false,
+    },
+    score: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+    },
+    last_score_updated_time: {
+        type: DataTypes.INTEGER, // Store total time in seconds or milliseconds
+        defaultValue: 0,
     }
 }, {
     tableName: 'users',

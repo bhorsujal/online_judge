@@ -60,7 +60,7 @@ const Submission = sequelize.define('Submission', {
 }, {
     tableName: 'submissions',
     timestamps: true,
-});
+}); 
 
 
 Submission.associate = (models) => {

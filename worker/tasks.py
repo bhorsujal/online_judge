@@ -83,8 +83,14 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
         extension = config.get('extension', '')
         image = config['image']
         timeout = config['timeout']
-
-        filename = f"submission_{submission_id}{extension}"
+        
+        if language == 'java':
+            filename = f"Main.java"
+            classname = "Main"
+        else:
+            filename = f"subimssion_{submission_id}{extension}"
+            classname = filename[:-5]
+            
 
         work_dir = os.path.join(os.getcwd(), "..", "problems", f"submission_{submission_id}")
         output_dir = os.path.join(work_dir, "outputs")
@@ -114,7 +120,7 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
             compile_cmd = config['compile_cmd'].format(
                 filename=filename,
                 exec_name=f"{filename}_exec",
-                classname=filename[:-5]  # For Java, filename is Main.java
+                classname=classname # For Java, filename is Main.java
             )
 
             compile_result = subprocess.run(
@@ -143,33 +149,40 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
 
             input_file = f'custom_input.txt' if customTestcase else f'in{i}.txt'
             output_file = f'custom_output.txt' if customTestcase else f'output_{i}.txt'
+            
+            try:
+                run_result = subprocess.run(
+                    f"docker run --rm --memory=256m --cpus=1 -v {work_dir}:/app -w /app {image} "
+                    f"sh -c 'timeout {timeout}s {run_cmd} < inputs/{input_file} | tee outputs/{output_file}'",
+                    shell=True, capture_output=True, text=True,timeout=timeout+5
+                )
 
-            run_result = subprocess.run(
-                f"docker run --rm --memory=256m --cpus=1 -v {work_dir}:/app -w /app {image} "
-                f"sh -c 'timeout {timeout}s {run_cmd} < inputs/{input_file} | tee outputs/{output_file}'",
-                shell=True, capture_output=True, text=True
-            )
+                if run_result.returncode == 124:
+                    return {
+                        "status": "time_limit_exceeded",
+                        "message": f"Execution time exceeded {timeout} seconds on testcase {i}."
+                    }
+                elif run_result.returncode != 0:
+                    error_message = run_result.stderr
+                    return {
+                        "status": "runtime_error",
+                        "message": f"Runtime error occurred on testcase {i}",
+                        "results": error_message
+                    }
 
-            if run_result.returncode == 124:
+                if not customTestcase:
+                    with open(os.path.join(output_dir, f"output_{i}.txt"), "r") as f_output, \
+                        open(os.path.join(expected_output_dir, f"out{i}.txt"), "r") as f_expected:
+                        if f_output.read().strip() != f_expected.read().strip():
+                            return {"status": "wrong_answer", "message": f"Failed on testcase {i}.", "results": run_result.stdout}
+
+                final_correct_result = run_result.stdout
+            
+            except subprocess.TimeoutExpired:
                 return {
                     "status": "time_limit_exceeded",
                     "message": f"Execution time exceeded {timeout} seconds on testcase {i}."
                 }
-            elif run_result.returncode != 0:
-                error_message = run_result.stderr
-                return {
-                    "status": "runtime_error",
-                    "message": f"Runtime error occurred on testcase {i}",
-                    "results": error_message
-                }
-
-            if not customTestcase:
-                with open(os.path.join(output_dir, f"output_{i}.txt"), "r") as f_output, \
-                    open(os.path.join(expected_output_dir, f"out{i}.txt"), "r") as f_expected:
-                    if f_output.read().strip() != f_expected.read().strip():
-                        return {"status": "wrong_answer", "message": f"Failed on testcase {i}.", "results": run_result.stdout}
-
-            final_correct_result = run_result.stdout
 
         results['results'] = final_correct_result
         return results
@@ -235,7 +248,7 @@ def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
         run_result = subprocess.run(
             docker_cmd,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         # Check for time limit exceeded
@@ -287,7 +300,7 @@ def execute_program(submission, mode='run'):
                 test_case_paths = [f"../problems/{submission['problem_id']}/in0.txt"]
                 expected_output_paths = [f"../problems/{submission['problem_id']}/out0.txt"]
         
-        if submission['event'] == 'RC' and customTestcase:
+        if submission['event'] == 'RC' and customTestcase and mode=='run':
             results = run_customTestcase_in_docker(
                 submission['submission_id'],
                 submission['problem_id'],
