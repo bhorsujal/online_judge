@@ -37,6 +37,7 @@ LANGUAGE_CONFIG = {
         'image': 'python:3.9-alpine',
         'run_cmd': 'python {filename}',
         'timeout': 4,
+        'memory_limit': 256,  # 256 MB
     },
     'cpp': {
         'extension': '.cpp',
@@ -44,6 +45,7 @@ LANGUAGE_CONFIG = {
         'compile_cmd': 'g++ -o {exec_name} {filename}',
         'run_cmd': './{exec_name}',
         'timeout': 2,
+        'memory_limit': 256,  # 256 MB
     },
     'c++': {  # Alias for cpp
         'extension': '.cpp',
@@ -51,6 +53,7 @@ LANGUAGE_CONFIG = {
         'compile_cmd': 'g++ -o {exec_name} {filename}',
         'run_cmd': './{exec_name}',
         'timeout': 2,
+        'memory_limit': 256,  # 256 MB
     },
     'java': {
         'extension': '.java',
@@ -58,12 +61,14 @@ LANGUAGE_CONFIG = {
         'compile_cmd': 'javac {filename}',
         'run_cmd': 'java {classname}',
         'timeout': 2,
+        'memory_limit': 512,  # 512 MB (Java typically needs more memory)
     },
     'javascript': {
         'extension': '.js',
         'image': 'node:14-alpine',
         'run_cmd': 'node {filename}',
         'timeout': 4,
+        'memory_limit': 256,  # 256 MB
     },
 }
 
@@ -72,13 +77,13 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
     try:
         results = {
             "status": "accepted",
-            "message": "All testcases passed",
+            "message": "All test cases passed",
             "results": ""
         }
 
         if language not in LANGUAGE_CONFIG:
             return {"status": "failed", "message": "Unsupported programming language"}
-        
+
         config = LANGUAGE_CONFIG[language]
         extension = config.get('extension', '')
         image = config['image']
@@ -100,11 +105,11 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
         os.makedirs(input_dir, exist_ok=True)
         os.makedirs(output_dir, exist_ok=True)
         os.makedirs(expected_output_dir, exist_ok=True)
-        
+
         with open(os.path.join(work_dir, filename), "w") as f:
             f.write(code)
 
-         # Handle custom testcase
+        # Handle custom testcase
         if customTestcase:
             with open(os.path.join(input_dir, 'custom_input.txt'), 'w') as f:
                 f.write(customTestcase)
@@ -137,7 +142,7 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
                     "message": f"Compilation failed.",
                     "results": f"{formatted_error}"
                 }
-            
+
         final_correct_result = ""
 
         for i in range(len(test_case_paths)):
@@ -192,6 +197,7 @@ def run_code_in_docker(code, language, submission_id, test_case_paths, expected_
     finally:
         if os.path.exists(work_dir):
             shutil.rmtree(work_dir)
+
 
 
 def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
@@ -399,5 +405,5 @@ app.conf.beat_schedule = {
     }
 }
 
-if __name__ == "__main__":
+if __name__ == "_main_":
     app.start()
