@@ -15,6 +15,7 @@ const pollSubmissionStatus = async (req, res) => {
             submissionId: submission.submission_id,
             status: submission.status,
             results: submission.results,
+            message: submission.messages
         });
     }
     catch(error) {

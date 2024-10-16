@@ -320,11 +320,11 @@ def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
         
 
 @app.task
-def execute_program(submission, mode='run'):
+def execute_program(submission, mode='RUN'):
     try:
         customTestcase = submission.get('customTestcase', '')
 
-        if mode == 'submit':
+        if mode == 'SUBMIT':
             num_test_cases = 6
             test_case_paths = [f"../problems/{submission['problem_id']}/in{i}.txt" for i in range(num_test_cases)]
             expected_output_paths = [f"../problems/{submission['problem_id']}/out{i}.txt" for i in range(num_test_cases)]

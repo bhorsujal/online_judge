@@ -42,7 +42,7 @@ const calculateAccuracy = async (user_id) => {
 // Webhook handler where accuracy can be calculated after the score update
 
 const handleWebhook = async (req, res) => {
-    const { submission_id, problem_id, user_id, results, status, action, event } = req.body;
+    const { submission_id, problem_id, user_id, results, status, action, event, message } = req.body;
 
     // Log all fields except "code" for debugging purposes
     console.log('Received webhook:', {
@@ -53,6 +53,7 @@ const handleWebhook = async (req, res) => {
         status,
         action,
         event,
+        message
     });
 
     try {
@@ -88,6 +89,7 @@ const handleWebhook = async (req, res) => {
         submission.status = status;
         submission.action = action;
         submission.event = event;
+        submission.messages = message;
 
         await submission.save();
         console.log(`Submission ${submission_id} updated successfully`);

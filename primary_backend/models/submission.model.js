@@ -64,6 +64,10 @@ const Submission = sequelize.define('Submission', {
     checked: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
+    },
+    messages: {
+        type: DataTypes.JSONB,
+        allowNull: true,
     }
 }, {
     tableName: 'submissions',

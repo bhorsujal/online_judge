@@ -46,15 +46,15 @@ module.exports = { register };
 
 const login = async (req, res) => {
     try {
-        const { email, password, event } = req.body;
+        const { email, password, event, category } = req.body;
 
-        if (!email || !password || !event) {
-            return res.status(400).json({ message: 'Email and password are required.' });
+        if (!email || !password || !event || !category) {
+            return res.status(400).json({ message: 'Email, password and category are required.' });
         }
        
-        const checkUser = await User.findOne({ where: { email : email, event : event } });
+        const checkUser = await User.findOne({ where: { email : email, event : event, category:category } });
         if (!checkUser) {
-            return res.status(400).json({ message: 'Email is not registered.' });
+            return res.status(400).json({ message: 'Email is not registered for this event.' });
         }
         
         const comparePassword = await bcrypt.compare(password, checkUser.password);
