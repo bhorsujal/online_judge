@@ -285,9 +285,14 @@ def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
         # Execute the Docker command
         run_result = subprocess.run(
             docker_cmd,
-            capture_output=True,
-            text=True 
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
         )
+
+        # Log stdout and stderr
+        print(f"stdout: {run_result.stdout}")
+        print(f"stderr: {run_result.stderr}")
 
         # Check for time limit exceeded
         if run_result.returncode == 124:
@@ -295,7 +300,6 @@ def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
                 "status": "time_limit_exceeded",
                 "message": f"Execution time exceeded {timeout} seconds on testcase."
             }
-        # Check for other runtime errors
         elif run_result.returncode != 0:
             error_message = run_result.stderr
             return {
@@ -304,10 +308,10 @@ def run_customTestcase_in_docker(submission_id, problem_id, customTestcase):
                 "results": error_message
             }
 
-        # Return 'accepted' as status for a successful run
+        # Return 'accepted' if successful
         results = run_result.stdout
         return {
-            "status": "accepted",  # Mapping 'success' to 'accepted' for valid enum
+            "status": "accepted",
             "message": "Custom test case executed successfully.",
             "results": results
         }
@@ -355,7 +359,7 @@ def execute_program(submission, mode='RUN'):
 
         submission['status'] = results['status']
         submission['message'] = results['message']
-        submission['results'] = results.get('results', '') if mode == 'run' else ''
+        submission['results'] = results.get('results', '') if mode == 'RUN' else ''
 
         return submission
     except Exception as e:
